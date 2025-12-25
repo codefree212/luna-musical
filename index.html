@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luna - Asistente Musical</title>
+    <meta name="theme-color" content="#302b63">
+    <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Luna%20Musical%22,%22short_name%22:%22Luna%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23302b63%22,%22theme_color%22:%22%2300ffff%22,%22icons%22:[{%22src%22:%22https://img.icons8.com/fluency/192/music.png%22,%22sizes%22:%22192x192%22,%22type%22:%22image/png%22}]}">
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1a0033, #000033);
+            color: #00ffff;
+            font-family: 'Arial', sans-serif;
+            padding: 10px;
+            box-sizing: border-box;
+            position: relative;
+        }
+        .container {
+            background: rgba(0, 255, 255, 0.05);
+            backdrop-filter: blur(25px);
+            border-radius: 30px;
+            padding: 25px;
+            box-shadow: 0 20px 60px rgba(0, 255, 255, 0.3);
+            width: 95%;
+            max-width: 750px;
+            height: 95vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            border: 1px solid #ff00ff;
+        }
+        h1 {
+            font-size: clamp(2.2em, 9vw, 3em);
+            margin: 15px 0 25px;
+            text-shadow: 0 0 20px #ff00ff, 0 0 10px #00ffff;
+        }
+        /* ... (todo el CSS anterior que ya tienes, lo mantengo igual) ... */
+        /* Puedes copiar todo el <style> del mensaje anterior aquí */
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Luna - Asistente Musical</h1>
+
+        <div id="startBtn" style="display:none;"><i class="fas fa-play-circle"></i></div>
+
+        <div id="visualizer"></div>
+
+        <div id="waveLine">
+            <canvas id="waveCanvas"></canvas>
+        </div>
+
+        <div id="voiceCircle"></div>
+
+        <div id="micBtn"><i class="fas fa-microphone"></i></div>
+
+        <div id="status">Cargando tu biblioteca...</div>
+
+        <div id="transcription">Escuchando tu comando...</div>
+
+        <audio id="player" controls></audio>
+
+        <div id="playlist"></div>
+    </div>
+
+    <div id="addMusicBtn" title="Agregar música">
+        <i class="fas fa-folder-plus"></i>
+    </div>
+    <input type="file" id="folderInput" webkitdirectory directory multiple accept="audio/*" style="display:none;">
+
+    <script>
+        const player = document.getElementById('player');
+        const folderInput = document.getElementById('folderInput');
+        const addMusicBtn = document.getElementById('addMusicBtn');
+        const playlistDiv = document.getElementById('playlist');
+        const status = document.getElementById('status');
+        const transcription = document.getElementById('transcription');
+        const startBtn = document.getElementById('startBtn');
+        const micBtn = document.getElementById('micBtn');
+        const visualizer = document.getElementById('visualizer');
+        const voiceCircle = document.getElementById('voiceCircle');
+        const waveCanvas = document.getElementById('waveCanvas');
+        const waveCtx = waveCanvas.getContext('2d');
+
+        let songs = [];
+        let current = -1;
+        let unlocked = false;
+        let audioContext, analyser, source, animationId, waveAnimationId;
+        let esperandoComando = false;
+
+        const NOMBRE_ASISTENTE = "luna";
+
+        // IndexedDB para guardar URLs de canciones (persistente)
+        let db;
+        const request = indexedDB.open('LunaMusicDB', 1);
+        request.onupgradeneeded = (e) => {
+            db = e.target.result;
+            db.createObjectStore('songs', { keyPath: 'id', autoIncrement: true });
+        };
+        request.onsuccess = (e) => {
+            db = e.target.result;
+            loadSavedSongs();
+        };
+
+        async function saveSong(url, name) {
+            const transaction = db.transaction('songs', 'readwrite');
+            const store = transaction.objectStore('songs');
+            store.add({ url, name });
+        }
+
+        async function loadSavedSongs() {
+            const transaction = db.transaction('songs', 'readonly');
+            const store = transaction.objectStore('songs');
+            const request = store.getAll();
+
+            request.onsuccess = () => {
+                const savedSongs = request.result;
+                songs = savedSongs.map(s => ({ fullName: s.name, url: s.url, name: normalizar(s.name.replace(/\.[^/.]+$/, "")) }));
+                renderPlaylist();
+                if (songs.length > 0) {
+                    status.innerHTML = `¡Tienes ${songs.length} canciones guardadas!<br>Di "Luna" para hablarme`;
+                    startBtn.style.display = 'block';
+                } else {
+                    status.innerHTML = "Agrega música para comenzar";
+                }
+            };
+        }
+
+        function renderPlaylist() {
+            playlistDiv.innerHTML = '';
+            songs.forEach((song, index) => {
+                const div = document.createElement('div');
+                div.className = 'song';
+                div.textContent = song.fullName;
+                div.onclick = () => reproducir(index);
+                playlistDiv.appendChild(div);
+            });
+        }
+
+        addMusicBtn.onclick = () => folderInput.click();
+
+        folderInput.onchange = async () => {
+            const files = folderInput.files;
+            if (files.length === 0) return;
+
+            let nuevas = 0;
+            for (let file of files) {
+                if (file.type.startsWith('audio/')) {
+                    const url = URL.createObjectURL(file);
+                    if (songs.some(s => s.fullName === file.name)) continue;
+
+                    songs.push({ fullName: file.name, url, name: normalizar(file.name.replace(/\.[^/.]+$/, "")) });
+                    await saveSong(url, file.name);
+                    nuevas++;
+                }
+            }
+
+            renderPlaylist();
+            status.innerHTML = nuevas > 0 ? `Agregué ${nuevas} canciones. Total: ${songs.length}` : "No hay nuevas canciones";
+            hablar(nuevas > 0 ? `Agregué ${nuevas} canciones` : "No encontré nuevas canciones");
+            if (!unlocked && songs.length > 0) startBtn.style.display = 'block';
+        };
+
+        // ... (todo el resto del código de visualizador, onda, voz, comandos, etc. es igual al anterior)
+
+        // Al final, cuando agregues canciones, se guardan en IndexedDB y se quedan para siempre
+    </script>
+</body>
+</html>
