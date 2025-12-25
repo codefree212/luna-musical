@@ -4,36 +4,272 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Luna - Asistente Musical</title>
-    <meta name="theme-color" content="#1a0033">
-    <meta name="description" content="Asistente musical con control por voz">
-    <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Luna%20Musical%22,%22short_name%22:%22Luna%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%231a0033%22,%22theme_color%22:%22%2300ffff%22,%22icons%22:[{%22src%22:%22https://img.icons8.com/fluency/512/music.png%22,%22sizes%22:%22512x512%22,%22type%22:%22image/png%22}]}">
     <style>
-        /* Todo el CSS moderno que ya tienes (el mismo del mensaje anterior) */
-        body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #1a0033, #000033); color: #00ffff; font-family: Arial, sans-serif; padding: 10px; box-sizing: border-box; position: relative; }
-        .container { background: rgba(0, 255, 255, 0.05); backdrop-filter: blur(25px); border-radius: 30px; padding: 25px; box-shadow: 0 20px 60px rgba(0, 255, 255, 0.3); width: 95%; max-width: 750px; height: 95vh; display: flex; flex-direction: column; align-items: center; position: relative; border: 1px solid #ff00ff; }
-        h1 { font-size: clamp(2.2em, 9vw, 3em); margin: 15px 0 25px; text-shadow: 0 0 20px #ff00ff, 0 0 10px #00ffff; }
-        /* ... pega aquí todo el resto del CSS que ya tienes (visualizer, waveLine, etc.) ... */
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1a0033, #000033); /* Moderno degradado azul/violeta */
+            color: #00ffff; /* Texto cyan neón */
+            font-family: 'Arial', sans-serif;
+            padding: 10px;
+            box-sizing: border-box;
+            position: relative;
+        }
+        .container {
+            background: rgba(0, 255, 255, 0.05); /* Transparencia cyan sutil */
+            backdrop-filter: blur(25px);
+            border-radius: 30px;
+            padding: 25px;
+            box-shadow: 0 20px 60px rgba(0, 255, 255, 0.3); /* Sombra neón */
+            width: 95%;
+            max-width: 750px;
+            height: 95vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            border: 1px solid #ff00ff; /* Borde magenta neón */
+        }
+        h1 {
+            font-size: clamp(2.2em, 9vw, 3em);
+            margin: 15px 0 25px;
+            text-shadow: 0 0 20px #ff00ff, 0 0 10px #00ffff; /* Sombra dual neón */
+        }
+
+        /* Visualizador multicolor moderno */
+        #visualizer {
+            width: clamp(140px, 45vw, 200px);
+            height: clamp(140px, 45vw, 200px);
+            border-radius: 50%;
+            margin: 20px auto;
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.7), 0 0 20px #ff00ff;
+            transition: transform 0.08s;
+            background: conic-gradient(
+                #00ffff, #ff00ff, #ffff00, #00ff99, #ff3399, #00ffff
+            );
+            animation: rotateGradient 6s linear infinite;
+            position: relative;
+        }
+        #visualizer::before {
+            content: '';
+            position: absolute;
+            inset: 5px;
+            border-radius: 50%;
+            background: #000033;
+            z-index: 1;
+        }
+        #visualizer.pulsing {
+            transform: scale(1.25);
+            box-shadow: 0 0 100px rgba(0, 255, 255, 1), 0 0 150px #ff00ff;
+            animation: pulseGlow 1.2s infinite alternate;
+        }
+
+        @keyframes rotateGradient {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes pulseGlow {
+            from { box-shadow: 0 0 50px rgba(0, 255, 255, 0.8); }
+            to { box-shadow: 0 0 120px rgba(255, 0, 255, 1), 0 0 160px #00ffff; }
+        }
+
+        /* Línea modular al ritmo del sonido */
+        #waveLine {
+            width: 90%;
+            height: 80px;
+            margin: 15px auto;
+            position: relative;
+            overflow: hidden;
+        }
+        #waveCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Círculo voz */
+        #voiceCircle {
+            width: clamp(50px, 15vw, 70px);
+            height: clamp(50px, 15vw, 70px);
+            background: #00ff99; /* Verde neón moderno */
+            border-radius: 50%;
+            margin: 15px auto;
+            box-shadow: 0 0 25px #00ff99;
+            opacity: 0;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        #voiceCircle.listening {
+            opacity: 1;
+            transform: scale(1.4);
+            box-shadow: 0 0 60px #00ff99;
+            animation: voicePulse 1s infinite alternate;
+        }
+        @keyframes voicePulse {
+            from { transform: scale(1.1); }
+            to { transform: scale(1.5); }
+        }
+
+        /* Botón micrófono */
+        #micBtn {
+            font-size: clamp(2.5em, 8vw, 3.5em);
+            cursor: pointer;
+            margin: 15px 0;
+            color: #ff00ff; /* Magenta */
+        }
+        #micBtn.active { 
+            color: #00ffff; 
+            animation: pulse 1s infinite; 
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        /* Estado */
+        #status {
+            font-size: clamp(1.1em, 4vw, 1.5em);
+            margin: 15px 0;
+            min-height: 50px;
+            padding: 0 10px;
+            font-weight: bold;
+            text-align: center;
+            transition: all 0.3s;
+            color: #ffff00; /* Amarillo neón para resaltar */
+        }
+
+        /* Transcripción */
+        #transcription {
+            font-size: clamp(1em, 3.5vw, 1.3em);
+            margin: 8px 0;
+            padding: 10px;
+            background: rgba(0, 255, 255, 0.15);
+            border-radius: 12px;
+            min-height: 40px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.4s, visibility 0.4s;
+            word-break: break-word;
+            text-align: center;
+            color: #00ff99;
+        }
+        #transcription.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        audio {
+            width: 95%;
+            margin: 15px 0;
+            filter: drop-shadow(0 0 10px #00ffff);
+        }
+
+        #playlist {
+            width: 100%;
+            flex: 1;
+            overflow-y: auto;
+            text-align: left;
+            padding: 0 10px;
+            box-sizing: border-box;
+        }
+        .song {
+            padding: 15px;
+            background: rgba(0, 255, 255, 0.1);
+            margin: 8px 0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            word-break: break-word;
+            border-left: 5px solid #ff00ff;
+        }
+        .song:hover, .song.playing {
+            background: rgba(255, 0, 255, 0.3);
+            transform: translateX(8px);
+        }
+
+        #playlist::-webkit-scrollbar {
+            width: 8px;
+        }
+        #playlist::-webkit-scrollbar-track {
+            background: rgba(0, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        #playlist::-webkit-scrollbar-thumb {
+            background: #00ff99;
+            border-radius: 10px;
+        }
+
+        /* Botón flotante agregar música */
+        #addMusicBtn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: rgba(0, 255, 153, 0.8); /* Verde neón */
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5em;
+            cursor: pointer;
+            box-shadow: 0 0 25px rgba(0, 255, 153, 0.6);
+            z-index: 1000;
+            transition: all 0.3s;
+        }
+        #addMusicBtn:hover {
+            transform: scale(1.1);
+            background: #ff00ff;
+        }
+
+        #startBtn {
+            font-size: clamp(4em, 15vw, 6em);
+            cursor: pointer;
+            margin: 30px 0;
+            color: #00ffff;
+        }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="container">
         <h1>Luna - Asistente Musical</h1>
+
         <div id="startBtn" style="display:none;"><i class="fas fa-play-circle"></i></div>
+
         <div id="visualizer"></div>
-        <div id="waveLine"><canvas id="waveCanvas"></canvas></div>
+
+        <!-- Nueva línea modular -->
+        <div id="waveLine">
+            <canvas id="waveCanvas"></canvas>
+        </div>
+
         <div id="voiceCircle"></div>
+
         <div id="micBtn"><i class="fas fa-microphone"></i></div>
-        <div id="status">Cargando tu biblioteca guardada...</div>
+
+        <div id="status">
+            Di "Luna" para activarme<br>Agrega música para comenzar
+        </div>
+
         <div id="transcription">Escuchando tu comando...</div>
+
         <audio id="player" controls></audio>
+
         <div id="playlist"></div>
     </div>
-    <div id="addMusicBtn" title="Agregar música"><i class="fas fa-folder-plus"></i></div>
+
+    <div id="addMusicBtn" title="Agregar más música">
+        <i class="fas fa-folder-plus"></i>
+    </div>
     <input type="file" id="folderInput" webkitdirectory directory multiple accept="audio/*" style="display:none;">
 
     <script>
-        // Elementos
         const player = document.getElementById('player');
         const folderInput = document.getElementById('folderInput');
         const addMusicBtn = document.getElementById('addMusicBtn');
@@ -50,80 +286,289 @@
         let songs = [];
         let current = -1;
         let unlocked = false;
-        let audioContext, analyser, source, animationId, waveAnimationId;
+        let audioContext, analyser, source, animationId;
+        const loadedFileNames = new Set();
         let esperandoComando = false;
 
         const NOMBRE_ASISTENTE = "luna";
 
-        // IndexedDB para persistencia
-        let db;
-        const dbRequest = indexedDB.open('LunaSongsDB', 1);
-        dbRequest.onupgradeneeded = (e) => {
-            db = e.target.result;
-            db.createObjectStore('songs', { keyPath: 'id', autoIncrement: true });
-        };
-        dbRequest.onsuccess = (e) => {
-            db = e.target.result;
-            loadSongsFromDB();
-        };
+        // Configuración para la onda modular
+        let waveAnimationId;
+        function iniciarOndaModular() {
+            waveCanvas.width = waveCanvas.offsetWidth;
+            waveCanvas.height = waveCanvas.offsetHeight;
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
 
-        async function loadSongsFromDB() {
-            const transaction = db.transaction('songs');
-            const store = transaction.objectStore('songs');
-            const request = store.getAll();
+            function drawWave() {
+                waveAnimationId = requestAnimationFrame(drawWave);
+                analyser.getByteFrequencyData(dataArray);
 
-            request.onsuccess = () => {
-                songs = request.result.map(s => ({ ...s, name: normalizar(s.fullName.replace(/\.[^/.]+$/, "")) }));
-                renderPlaylist();
-                if (songs.length > 0) {
-                    status.innerHTML = `¡Bienvenido! Tienes ${songs.length} canciones guardadas<br>Di "Luna" para hablarme`;
-                    startBtn.style.display = 'block';
-                } else {
-                    status.innerHTML = "Agrega música para comenzar<br>Toca el + abajo a la derecha";
+                waveCtx.clearRect(0, 0, waveCanvas.width, waveCanvas.height);
+                waveCtx.lineWidth = 3;
+                waveCtx.strokeStyle = '#00ffff'; // Cyan neón
+
+                let sliceWidth = waveCanvas.width / bufferLength;
+                let x = 0;
+
+                waveCtx.beginPath();
+                for (let i = 0; i < bufferLength; i++) {
+                    let v = dataArray[i] / 128.0;
+                    let y = (v * waveCanvas.height / 2) * (1 + Math.sin(Date.now() / 500 + i / 10) * 0.1); // Modular con sin
+
+                    if (i === 0) waveCtx.moveTo(x, y);
+                    else waveCtx.lineTo(x, y);
+
+                    x += sliceWidth;
                 }
-            };
+                waveCtx.lineTo(waveCanvas.width, waveCanvas.height / 2);
+                waveCtx.stroke();
+            }
+            drawWave();
         }
 
-        function saveSongToDB(song) {
-            const transaction = db.transaction('songs', 'readwrite');
-            const store = transaction.objectStore('songs');
-            store.add(song);
+        function normalizar(texto) {
+            return texto.toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9\s]/g, "")
+                .trim();
         }
 
-        function renderPlaylist() {
-            playlistDiv.innerHTML = '';
-            songs.forEach((song, i) => {
-                const div = document.createElement('div');
-                div.className = 'song';
-                div.textContent = song.fullName;
-                div.onclick = () => reproducir(i);
-                playlistDiv.appendChild(div);
-            });
+        function hablar(texto) {
+            const utterance = new SpeechSynthesisUtterance(texto);
+            utterance.lang = 'es-ES';
+            utterance.rate = 0.9;
+            window.speechSynthesis.speak(utterance);
         }
 
-        // Carga de música
+        function mostrarTranscripcion() {
+            transcription.classList.add('active');
+            transcription.textContent = "Escuchando tu comando...";
+        }
+
+        function ocultarTranscripcion() {
+            transcription.classList.remove('active');
+            transcription.textContent = "Escuchando tu comando...";
+        }
+
+        function iniciarVisualizador() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                source = audioContext.createMediaElementSource(player);
+                source.connect(analyser);
+                analyser.connect(audioContext.destination);
+                analyser.fftSize = 512; // Más resolución para onda
+            }
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            function animar() {
+                animationId = requestAnimationFrame(animar);
+                analyser.getByteFrequencyData(dataArray);
+                const promedio = dataArray.reduce((a,b) => a+b) / bufferLength;
+                const escala = 1 + (promedio / 255) * 0.3;
+                visualizer.style.transform = `scale(${escala})`;
+                if (promedio > 60) visualizer.classList.add('pulsing');
+                else visualizer.classList.remove('pulsing');
+            }
+            animar();
+            iniciarOndaModular(); // Iniciar onda modular
+        }
+
+        player.onplay = () => iniciarVisualizador();
+        player.onpause = player.onended = () => {
+            if (animationId) cancelAnimationFrame(animationId);
+            if (waveAnimationId) cancelAnimationFrame(waveAnimationId);
+            visualizer.style.transform = 'scale(1)';
+            visualizer.classList.remove('pulsing');
+            waveCtx.clearRect(0, 0, waveCanvas.width, waveCanvas.height);
+        };
+
         addMusicBtn.onclick = () => folderInput.click();
+
         folderInput.onchange = () => {
-            const files = Array.from(folderInput.files);
+            const files = folderInput.files;
+            if (files.length === 0) return;
+
             let nuevas = 0;
-            files.forEach(file => {
-                if (file.type.startsWith('audio/')) {
+
+            for (let file of files) {
+                if (file.type.startsWith('audio/') && !loadedFileNames.has(file.name)) {
                     const url = URL.createObjectURL(file);
-                    if (songs.some(s => s.fullName === file.name)) return;
-                    const song = { fullName: file.name, url };
-                    songs.push(song);
-                    saveSongToDB(song);
+                    const name = file.name;
+                    const cleanName = normalizar(name.replace(/\.[^/.]+$/, ""));
+
+                    songs.push({name: cleanName, fullName: name, url});
+                    loadedFileNames.add(file.name);
+
+                    const div = document.createElement('div');
+                    div.className = 'song';
+                    div.textContent = name;
+                    div.onclick = () => reproducir(songs.findIndex(s => s.url === url));
+                    playlistDiv.appendChild(div);
+
                     nuevas++;
                 }
-            });
-            renderPlaylist();
-            status.innerHTML = nuevas > 0 ? `Agregué ${nuevas} canciones. Total: ${songs.length}` : "No se agregaron canciones";
-            if (nuevas > 0 && songs.length === nuevas) startBtn.style.display = 'block';
+            }
+
+            if (nuevas > 0) {
+                const mensaje = nuevas === 1 
+                    ? `Agregué 1 nueva canción. Total: ${songs.length}` 
+                    : `Agregué ${nuevas} nuevas canciones. Total: ${songs.length}`;
+                status.innerHTML = mensaje + "<br>Di 'Luna' para activarme";
+                hablar(mensaje);
+
+                if (songs.length === nuevas) {
+                    startBtn.style.display = 'block';
+                }
+            } else {
+                hablar("No hay nuevas canciones");
+            }
         };
 
-        // ... (pega aquí todo el código de visualizador, onda modular, reconocimiento de voz, reproducir, etc. del mensaje anterior)
+        startBtn.onclick = () => {
+            player.play().catch(() => {});
+            unlocked = true;
+            startBtn.style.display = 'none';
+            status.innerHTML = "¡Activada! Di 'Luna' para hablarme";
+            hablar("Estoy lista. Solo di Luna cuando quieras");
+            if (current === -1 && songs.length > 0) reproducir(0);
+            iniciarEscuchaContinua();
+        };
 
-        // Las canciones se guardan en IndexedDB y se quedan para siempre en esa URL
+        function reproducir(index) {
+            if (index < 0 || index >= songs.length) return;
+            current = index;
+            player.src = songs[index].url;
+            if (unlocked) player.play();
+
+            const msg = `Reproduciendo ${songs[index].fullName}`;
+            status.innerHTML = msg;
+            hablar(msg);
+
+            document.querySelectorAll('.song').forEach((el, i) => {
+                el.classList.toggle('playing', i === index);
+            });
+
+            ocultarTranscripcion();
+            voiceCircle.classList.remove('listening');
+        }
+
+        function buscar(nombre) {
+            const busqueda = normalizar(nombre);
+            for (let i = 0; i < songs.length; i++) {
+                if (songs[i].name.includes(busqueda)) {
+                    reproducir(i);
+                    return true;
+                }
+            }
+            status.innerHTML = "No encontré esa canción";
+            hablar("No encontré esa canción");
+            ocultarTranscripcion();
+            voiceCircle.classList.remove('listening');
+            return false;
+        }
+
+        const reconocimiento = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        reconocimiento.lang = 'es-ES';
+        reconocimiento.continuous = true;
+        reconocimiento.interimResults = true;
+
+        function iniciarEscuchaContinua() {
+            if (songs.length > 0 && unlocked) {
+                reconocimiento.start();
+            }
+        }
+
+        micBtn.onclick = () => {
+            if (songs.length === 0) { hablar("Primero agrega música"); return; }
+            if (!unlocked) { hablar("Pulsa el botón de play primero"); return; }
+            iniciarEscuchaContinua();
+        };
+
+        reconocimiento.onresult = (e) => {
+            let transcript = "";
+            let finalTranscript = "";
+
+            for (let i = e.resultIndex; i < e.results.length; i++) {
+                const res = e.results[i];
+                if (res.isFinal) {
+                    finalTranscript += res[0].transcript;
+                } else {
+                    transcript += res[0].transcript;
+                }
+            }
+
+            const actualText = (finalTranscript || transcript).trim();
+            const dicho = normalizar(actualText);
+
+            if (esperandoComando && actualText) {
+                transcription.textContent = actualText;
+            }
+
+            if (finalTranscript) {
+                if (esperandoComando) {
+                    esperandoComando = false;
+
+                    if (dicho.includes('cuantas canciones') || dicho.includes('cuanta musica') || 
+                        dicho.includes('total de canciones') || dicho.includes('cuantas tienes') ||
+                        dicho.includes('cuantas hay')) {
+                        const total = songs.length;
+                        const respuesta = total === 1 
+                            ? `Tengo ${total} canción lista para reproducir` 
+                            : `Tengo ${total} canciones listas para reproducir`;
+                        status.innerHTML = respuesta;
+                        hablar(respuesta);
+                        ocultarTranscripcion();
+                        voiceCircle.classList.remove('listening');
+                        return;
+                    }
+
+                    if (dicho.includes('siguiente')) {
+                        if (current < songs.length - 1) reproducir(current + 1);
+                        else hablar("Es la última canción");
+                    } else if (dicho.includes('anterior') || dicho.includes('atras')) {
+                        if (current > 0) reproducir(current - 1);
+                        else hablar("Es la primera canción");
+                    } else if (dicho.includes('play') || dicho.includes('reproduce') || dicho.includes('continua')) {
+                        if (player.paused) player.play();
+                        hablar("Reanudando");
+                    } else if (dicho.includes('pausa') || dicho.includes('para') || dicho.includes('stop')) {
+                        player.pause();
+                        hablar("Pausado");
+                    } else {
+                        let posibleCancion = dicho.replace('reproduce', '').replace('toca', '').replace('pon', '').trim();
+                        buscar(posibleCancion || dicho);
+                    }
+                } else if (dicho.includes(NOMBRE_ASISTENTE) || 
+                           dicho.startsWith('hey ' + NOMBRE_ASISTENTE) || 
+                           dicho.startsWith('ok ' + NOMBRE_ASISTENTE)) {
+                    esperandoComando = true;
+                    voiceCircle.classList.add('listening');
+                    mostrarTranscripcion();
+                    status.innerHTML = "¡Sí! ¿Qué deseas?";
+                    hablar("¿Qué deseas?");
+                }
+            }
+        };
+
+        reconocimiento.onerror = () => {
+            if (esperandoComando) {
+                esperandoComando = false;
+                ocultarTranscripcion();
+                voiceCircle.classList.remove('listening');
+            }
+            setTimeout(iniciarEscuchaContinua, 1000);
+        };
+
+        reconocimiento.onend = () => {
+            if (!esperandoComando) {
+                setTimeout(iniciarEscuchaContinua, 500);
+            }
+        };
     </script>
 </body>
 </html>
